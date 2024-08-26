@@ -1,6 +1,7 @@
 import pygame
 import socket
 import threading
+import time
 
 # Initialize pygame
 pygame.init()
@@ -8,7 +9,7 @@ pygame.init()
 # Screen dimensions
 WIDTH, HEIGHT = 1600, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("2 Player Brick Breaker")
+pygame.display.set_caption("2 Player client Brick Breaker")
 
 # Colors
 BLACK = (0, 0, 0)
@@ -38,17 +39,18 @@ opp_ball = pygame.Rect(WIDTH * 3 // 4, HEIGHT // 2, BALL_RADIUS, BALL_RADIUS)
 
 def send_data():
     while True:
-        message = f"{paddle1.x},{paddle1.y},{ball.x},{ball.y},{ball_dx},{ball_dy}"
+        message = f"{paddle1.x},{paddle1.y},{ball.x},{ball.y},{ball_dx},{ball_dy}\n"
         client.send(message.encode('utf-8'))
+        time.sleep(0.1)
 
 def receive_data():
-    global opp_paddle, opp_ball, ball_dx, ball_dy
+    global paddle1, opp_ball, ball_dx, ball_dy
     while True:
         data = client.recv(1024).decode('utf-8')
         if data:
             p2_x, p2_y, b_x, b_y, b_dx, b_dy = map(int, data.split(','))
-            opp_paddle.x = WIDTH // 2 + p2_x
-            opp_paddle.y = p2_y
+            paddle1.x = WIDTH // 2 + p2_x
+            paddle1.y = p2_y
             opp_ball.x = WIDTH // 2 + b_x
             opp_ball.y = b_y
             ball_dx = b_dx
@@ -85,10 +87,10 @@ while running:
 
     screen.fill(BLACK)
     pygame.draw.rect(screen, RED, paddle1)
-    pygame.draw.rect(screen, BLUE, opp_paddle)
+    pygame.draw.rect(screen, BLUE, paddle2)
     pygame.draw.ellipse(screen, WHITE, ball)
     pygame.draw.ellipse(screen, WHITE, opp_ball)
-
+    
     # Draw the divider
     pygame.draw.line(screen, WHITE, (WIDTH // 2, 0), (WIDTH // 2, HEIGHT))
 
