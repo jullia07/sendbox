@@ -213,8 +213,8 @@ def run_game(is_host, server_ip=None):
                 my_game.move_paddle("right")
 
             # 공이 화면에서 사라지면 패배 처리
-            if my_game.ball_pos[1] >= (SCREEN_HEIGHT-40):
-                print(f"Ball out of screen. You lose!{ my_game.ball_pos[1]}")
+            if my_game.ball_pos[1] >= (SCREEN_HEIGHT-49) :
+                print("Ball out of screen. You lose!")
                 my_result = "LOSE"
                 connection.send("WIN")  # 상대방에게 승리 메시지 전송
                 game_over = True
@@ -224,12 +224,11 @@ def run_game(is_host, server_ip=None):
                 paddle_data = f"{my_game.paddle_pos[0]},{my_game.ball_pos[0]},{my_game.ball_pos[1]}"
                 connection.send(paddle_data)
                 opponent_data = connection.receive()
-                #opponent_data = "342,525,539"
 
                 # 게임 종료 상태인지 확인
                 if "WIN" in opponent_data or "LOSE" in opponent_data : #opponent_data in ["WIN", "LOSE"]:
                     print(f"Received game result: {opponent_data}")
-                    my_result = "LOSE" if "WIN" in opponent_data else "WIN"
+                    my_result = "LOSE" if "LOSE" in opponent_data else "WIN"
                     game_over = True
                     continue
                 else:
@@ -239,7 +238,7 @@ def run_game(is_host, server_ip=None):
                         opponent_game.paddle_pos[0] = opponent_paddle_x
                         opponent_game.ball_pos = [opponent_ball_x, opponent_ball_y]
                     except ValueError as e:
-                        # print(f"Error parsing opponent data: {opponent_data}. Error: {e}")
+                        print(f"Error parsing opponent data: {opponent_data}. Error: {e}")
                         continue
 
             my_game.move_ball()
@@ -262,7 +261,7 @@ def run_game(is_host, server_ip=None):
             result_text = font.render(my_result, True, WHITE)
             screen.blit(result_text, (SCREEN_WIDTH // 2 - result_text.get_width() // 2, SCREEN_HEIGHT // 2 - result_text.get_height() // 2))
             pygame.display.flip()
-            # print(f"Game result: {my_result}")
+            print(f"Game result: {my_result}")
 
     pygame.quit()
 
