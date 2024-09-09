@@ -118,6 +118,41 @@ class BrickBreakerGame:
         if direction == "right" and self.paddle_pos[0] < PLAYER_SCREEN_WIDTH - PADDLE_WIDTH:
             self.paddle_pos[0] += 5
 
+# 대결자의 클래스라 화면에 표시만 하면 된다. 
+class BrickBreakerGameOpponent:
+        #game_info_data = {
+        #   'blocks' : [],
+        #   'block_colors' : [],
+        #   'paddle_pos' : 0,
+        #   'ball_pos' : [0,0],
+        #   'winner' : 0
+        #}    
+    def __init__(self, paddle_color, opponent_info):
+        self.blocks = []
+        self.block_colors = []
+        self.paddle_pos = []
+        self.ball_pos = []
+        self.paddle_color = paddle_color
+        self.update_info(opponent_info)
+        
+    def update_info(self, opponent_info):
+        self.blocks = opponent_info['blocks'].copy()
+        self.block_colors = opponent_info['block_colors'].copy()
+        self.paddle_pos = [opponent_info['paddle_pos'], SCREEN_HEIGHT - 50]
+        self.ball_pos = opponent_info['ball_pos'].copy()
+
+    def draw(self, screen, offset_x):
+        for i, block in enumerate(self.blocks):
+            if i < len(self.block_colors):
+                block_rect = pygame.Rect(block.x + offset_x, block.y, BLOCK_WIDTH, BLOCK_HEIGHT)
+                pygame.draw.rect(screen, self.block_colors[i], block_rect)
+        
+        paddle_rect = pygame.Rect(self.paddle_pos[0] + offset_x, self.paddle_pos[1], PADDLE_WIDTH, PADDLE_HEIGHT)
+        pygame.draw.rect(screen, self.paddle_color, paddle_rect)
+        
+        ball_pos_with_offset = [self.ball_pos[0] + offset_x, self.ball_pos[1]]
+        pygame.draw.circle(screen, WHITE, ball_pos_with_offset, BALL_RADIUS)
+
 # 서버 (호스트) 역할을 하는 클래스
 class Server:
     def __init__(self):
@@ -292,7 +327,7 @@ def run_game(is_host, server_ip=None):
     ## BrickBreakerGame 과 유사한 BrickBreakerGameOpponent을 만드는게 좋다. 
     ## 이렇게 해서 상대방의 데이터를 그대로 복사해서 보여주도록 하는게 훨씬 효율적으로 보인다.
     ## 계산도 하지 않고 그냥 보여주면 된다.
-    opponent_game = BrickBreakerGame(BLUE if is_host else RED, opponent_block_colors)
+    opponent_game = BrickBreakerGameOpponent(BLUE if is_host else RED, opponent_info)
 
     countdown = 5
     start_time = time.time()
@@ -332,7 +367,8 @@ def run_game(is_host, server_ip=None):
             if my_game.ball_pos[1] >= (SCREEN_HEIGHT-49) :
                 print("Ball out of screen. You lose!")
                 my_result = "LOSE"
-                connection.send("WIN")  # 상대방에게 승리 메시지 전송
+                game_data_send(connection, my_game, -1) # 내가 졌음을 알림.
+                # connection.send("WIN")  # 상대방에게 승리 메시지 전송
                 game_over = True
                 continue
             else:
@@ -342,17 +378,26 @@ def run_game(is_host, server_ip=None):
                 opponent_data = connection.receive()
 
                 # 게임 종료 상태인지 확인
-                if "WIN" in opponent_data or "LOSE" in opponent_data : #opponent_data in ["WIN", "LOSE"]:
-                    print(f"Received game result: {opponent_data}")
-                    my_result = "LOSE" if "LOSE" in opponent_data else "WIN"
-                    game_over = True
+                #if "WIN" in opponent_data or "LOSE" in opponent_data : #opponent_data in ["WIN", "LOSE"]:
+                #    print(f"Received game result: {opponent_data}")
+                #    my_result = "LOSE" if "LOSE" in opponent_data else "WIN"
+                #    game_over = True
+                #    continue
+                if opponent_data['winner'] == -1 :
+                    my_result = "WIN"
+                    game_over = True 
+                    continue    
+                elif  opponent_data['winner'] == 1 :
+                    my_result = "LOSE"
+                    game_over = True 
                     continue
                 else:
                     try:
                         # 상대방의 패들과 공의 위치를 처리
-                        opponent_paddle_x, opponent_ball_x, opponent_ball_y = map(int, opponent_data.split(','))
-                        opponent_game.paddle_pos[0] = opponent_paddle_x
-                        opponent_game.ball_pos = [opponent_ball_x, opponent_ball_y]
+                        #opponent_paddle_x, opponent_ball_x, opponent_ball_y = map(int, opponent_data.split(','))
+                        #opponent_game.paddle_pos[0] = opponent_paddle_x
+                        #opponent_game.ball_pos = [opponent_ball_x, opponent_ball_y]
+                        opponent_game.update_info(opponent_data)
                     except ValueError as e:
                         print(f"Error parsing opponent data: {opponent_data}. Error: {e}")
                         continue
