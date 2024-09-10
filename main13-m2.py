@@ -138,7 +138,7 @@ class BrickBreakerGameOpponent:
     def update_info(self, opponent_info):
         self.blocks = opponent_info['blocks'].copy()
         self.block_colors = opponent_info['block_colors'].copy()
-        self.paddle_pos = [opponent_info['paddle_pos'], SCREEN_HEIGHT - 50]
+        self.paddle_pos = opponent_info['paddle_pos'].copy()
         self.ball_pos = opponent_info['ball_pos'].copy()
 
     def draw(self, screen, offset_x):
@@ -179,7 +179,7 @@ class Server:
     def recv_all(self, length):
         data = b''
         while len(data) < length:
-            more = self.sock.recv(length - len(data))
+            more = self.conn.recv(length - len(data))
             if not more:
                 raise EOFError('데이터가 예상보다 적습니다.')
             data += more
@@ -214,10 +214,8 @@ class Client:
             serialized_data = pickle.dumps(data)
             compressed_data = zlib.compress(serialized_data)
             data_length = len(compressed_data)
-            
             self.sock.sendall(struct.pack('!I', data_length))
             self.sock.sendall(compressed_data)
-            
             #self.sock.sendall(data.encode())
         except (socket.error, BrokenPipeError) as e :
             print(f"Connection lost. {e}")
@@ -368,14 +366,20 @@ def run_game(is_host, server_ip=None):
                 print("Ball out of screen. You lose!")
                 my_result = "LOSE"
                 game_data_send(connection, my_game, -1) # 내가 졌음을 알림.
+                opponent_data = connection.receive()
+                if opponent_data['winner'] == -1 : # 둘다 
+                     my_result = "Tie, draw."    
                 # connection.send("WIN")  # 상대방에게 승리 메시지 전송
                 game_over = True
                 continue
             else:
                 # 패들과 공의 위치를 상대에게 보냄
-                paddle_data = f"{my_game.paddle_pos[0]},{my_game.ball_pos[0]},{my_game.ball_pos[1]}"
-                connection.send(paddle_data)
+                #paddle_data = f"{my_game.paddle_pos[0]},{my_game.ball_pos[0]},{my_game.ball_pos[1]}"
+                #connection.send(paddle_data)
+                # 내 게임 데이터 보냄.
+                game_data_send(connection, my_game)
                 opponent_data = connection.receive()
+                opponent_game.update_info(opponent_data)
 
                 # 게임 종료 상태인지 확인
                 #if "WIN" in opponent_data or "LOSE" in opponent_data : #opponent_data in ["WIN", "LOSE"]:
@@ -384,11 +388,17 @@ def run_game(is_host, server_ip=None):
                 #    game_over = True
                 #    continue
                 if opponent_data['winner'] == -1 :
-                    my_result = "WIN"
+                    if my_result is None :
+                        my_result = "WIN" 
+                    elif my_result == "LOSE": # 나도 졌다고 했고, 상대방도 졌다고 보냈다. 이러면 동시임.
+                        my_result = "Tie, draw."
                     game_over = True 
                     continue    
                 elif  opponent_data['winner'] == 1 :
-                    my_result = "LOSE"
+                    if my_result is None :
+                        my_result = "LOSE" 
+                    elif my_result == "WIN" : # 상대방도 이겼다고 보냈고, 나도 이겼다고 보냈을때 동시임.
+                        my_result = "Tie, draw."
                     game_over = True 
                     continue
                 else:
